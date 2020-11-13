@@ -1,6 +1,7 @@
 How to setup the project:
 
 Step 1:Create a conda virtual environment in pycharm.[ https://docs.anaconda.com/anaconda/user-guide/tasks/pycharm/ ]
+
 Step 2:Add the following packages to the project:
 flask(version: 1.1.2)
 pandas(version: 1.1.4)

@@ -2,6 +2,10 @@
 import inline as inline
 from flask import Flask,render_template,url_for,request
 import pandas as pd
+from nltk.corpus import wordnet
+from nltk import pos_tag
+from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
 import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set_style("whitegrid")
@@ -13,6 +17,31 @@ app = Flask(__name__)
 @app.route('/')
 def home():
 	return render_template('home.html')
+
+
+def clean_text(message,stops):
+	words = word_tokenize(message)
+	output_words = []
+	for w in words:
+		if w.lower() not in stops:
+			pos = pos_tag([w])
+			clean_word = WordNetLemmatizer().lemmatize(w, pos=get_simple_pos(pos[0][1]))
+			output_words.append(clean_word.lower())
+	return " ".join(output_words)
+
+
+def get_simple_pos(tag):
+	if tag.startswith('J'):
+		return wordnet.ADJ
+	elif tag.startswith('V'):
+		return wordnet.VERB
+	elif tag.startswith('N'):
+		return wordnet.NOUN
+	elif tag.startswith('R'):
+		return wordnet.ADV
+	else:
+		return wordnet.NOUN
+
 
 @app.route('/predict',methods=['POST'])
 def predict() :
@@ -50,24 +79,9 @@ def predict() :
 	X = df['message']
 	y = df['label']
 
+
 	# Preprocessing(Removing stopwords, stemming etc)
-	from nltk.stem import WordNetLemmatizer
-	lemmatizer = WordNetLemmatizer()
 
-	from nltk.corpus import wordnet
-	from nltk import pos_tag
-	def get_simple_pos(tag):
-
-		if tag.startswith('J'):
-			return wordnet.ADJ
-		elif tag.startswith('V'):
-			return wordnet.VERB
-		elif tag.startswith('N'):
-			return wordnet.NOUN
-		elif tag.startswith('R'):
-			return wordnet.ADV
-		else:
-			return wordnet.NOUN
 
 	from nltk.corpus import stopwords
 	import string
@@ -77,21 +91,9 @@ def predict() :
 	stops, string.punctuation
 
 
-	def clean_text(message):
-		words = word_tokenize(message)
-		output_words = []
-		for w in words:
-			if w.lower() not in stops:
-				pos = pos_tag([w])
-				clean_word = lemmatizer.lemmatize(w, pos=get_simple_pos(pos[0][1]))
-				output_words.append(clean_word.lower())
-		return " ".join(output_words)
+	cleanX = [clean_text(message,stops) for message in X]
 
-
-	from nltk.tokenize import word_tokenize
-	cleanX = [clean_text(message) for message in X]
-
-
+	# Splitting data into training and testing set
 	from sklearn.model_selection import train_test_split
 	X_train, X_test, y_train, y_test = train_test_split(cleanX, y, test_size=0.33, random_state=42)
 
@@ -148,7 +150,7 @@ def predict() :
 
 	if request.method == 'POST':
 		message = request.form['message']
-		data = [clean_text(message)]
+		data = [clean_text(message,stops)]
 		data_dtm = count_vec.transform(data)
 		my_prediction = clf.predict(data_dtm)
 	return render_template('result.html',prediction = my_prediction)
